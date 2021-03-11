@@ -1,0 +1,633 @@
+---
+title: "satis"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: rmdformats::readthedown
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Kullanilan Kutuphaneler
+
+```{r message=FALSE, warning=FALSE}
+library(ISLR)
+library(funModeling)
+library(psych)
+library(pastecs)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(GGally)
+library(gridExtra)
+library(BaylorEdPsych)
+library(mvnmle)
+library(mice)
+library(VIM)
+library(Hmisc)
+library(DMwR)
+library(car)
+library(faraway)
+library(corrplot)
+```
+
+## Veri Okutulmasi
+```{r message=FALSE, warning=FALSE}
+#library(ISLR)
+data("Satis")
+
+```
+## Tanımlayıcı İstatistikler
+
+## 1. Verinin Ozetlenmesi
+
+```{r message=FALSE, warning=FALSE}
+summary(satis)  
+#Burada hem kategorik degiskenlerden hem surekli degiskenlerden belirli ozetler gostermektedir.Burada surekli degiskenler icin ceyreklik degerleri,minimum maximum degerini ortalamasini medyanini vermektedir.
+```
+
+## Surekli Degiskenler icin Ozet
+```{r message=FALSE, warning=FALSE}
+library(funModeling)
+profiling_num(satis)
+
+#Burada sadece surekli degiskenlere iliskin ozet istatistikleri vermektedir.Inceledegimiz zaman p_01,p_05_p_25... anlami bir degisken kucukten buyuge dogru sıralanıp bunun yuzde 5lik yuzde 25lik yuzde 50lik gibi kesimlere denk gelen degerleri gostermektedir.Boxplot grafiginin kullandıgına benzer bir sekilde diyebiliriz.Ayrı olarak basiklik carpiklik gibi degerler var.
+```
+
+## Surekli Degiskenler icin Grafik 
+```{r message=FALSE, warning=FALSE}
+plot_num(satis)
+#Buradada surekli degiskenleri toplu olarak gorsellestirmek icin kullandigimiz bir kod.Burada degiskenler icin dagilimlari gorebiliyoruz.Ilerleyen kısımlarda tek tek incelendiginde grafiklerin yorumu yapılacaktir.
+```
+
+
+
+## Kategorik Degiskenler icin Grafik
+
+```{r message=FALSE, warning=FALSE}
+library(funModeling)
+freq(satis)
+#Burada butun kategorik degiskenler icin oldukca detaylı bilgiler sunmaktadir.Ilk ciktiya bakarsak oyuncularin oynadigi liglerin frekanslari yuzdeleri kumulatif olacak sekilde verimiltir.Ikinci cikti ve ucuncu cikti icinde ayni durum soz konusudur.Daha sonra grafiklerine baktigimiz zaman tum kategorik degiskenlerin alt sinifi olarak yatay bir sekilde frekans dagilimlarini barplot sekilde vermistir.
+```
+
+## Sürekli Degiskenler icin Alternatif 
+
+```{r message=FALSE, warning=FALSE}
+#library(psych)
+describe(satis$Odeme)
+#Burada AtBat degiskeni icin bazı cıktilar vermektedir.Ornegin kac gozlemden olustugu medyani standart sapmasi vs. gibi.Bu diger kullandigimiz fonskiyonlardan biraz daha detayli bir cikti vermektedir.
+
+```
+
+## Tum Veri Seti icin Degerler
+
+```{r message=FALSE, warning=FALSE}
+library(pastecs)
+stat.desc(satis)
+#Burada goruldugu gibi kategorik degiskenler icin goremiyoruz.Detaylara bakarsak tum veri seti diger ciktilardan farkli olarak güven araligini,toplami gorebiliyoruz.Ihtiyac duyuldugunda kullanılabilicek bir fonksiyon
+
+```
+
+
+Oncellikle veri setimiz uzerinden bir alt kume olusturmak istiyorum.Bir kategorik degiksen aldigimizda ornegin bu League degiskeni olsun.Bu kategorik degiskene iliskinde 3 tane surekli degisken alalım.Bu describe.by fonksiyonu digerlerinden biraz farklı denilebilir.Verilen bir kategorik degisken kiriliminda veri setini ozetlemeye yariyor.Bu komut oldukca islevsel bir komut diyebiliriz.Elimizde iki uc sınıflı bir kategorik degisken oldugunu dusunursek bunu siniflarina bolup bu siniflarin uzerinde diger surekli degiskenlerin ozet istatistiklerin erismek oldukca kullanisli olmaktadir.
+```{r message=FALSE, warning=FALSE}
+
+library(dplyr)
+df <- select(satis,ulasma,formsayısı,iptal)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(psych)
+describe.by(df,df$ulasma)
+
+```
+Burada ulasma degiskeninin tum siniflari icin bir kirilim olusturmus oldu.Detaylarina bakarsak "satışçı" grubu icin bunun diger 3 degisken icin degerlerini vermis oldu.Ornegin cok sinifli bir kategorik degiskenimiz var ve siniflari dusurmek istiyoruz.Bu durumda kategorilere gore bagimli degiskenimiz dagilimina bakma ihtiyacimiz var.Bunu gorsel yontemlerle yapabilicegimiz gibi bu yontemlerlede gorebiliriz.Mesela bazi kategorilerin ortalamalari arasinda istatiksel olarak anlamli bir farklilik yok ise bu durumda bir test yapip bu siniflari birlestirme ihtiyaci duyuyor olabiliriz.Iste aslinda bu testi yapmadan once bize kategorik degiskenin siniflari altinda bir surekli degiskenin dagiliminin ne sekilde olabilecegi bilgisini bize vermektedir.
+
+## Grafikler ile Dagilimin Incelenmesi
+
+## Bar Plot(Sutun Grafik)
+```{r message=FALSE, warning=FALSE}
+#Kategorik degiskenlerin gorsellestirilmesinde kullanilan bir grafik yontemidir.
+df <- ulasma
+ggplot(df,aes(odeme))+ geom_bar()
+#Burada basit bir sekilde bize bu kategorik degiskeninin siniflarinin gozlenme sayilarina iliskin bir bilgi sundu.Bunun üzerinden gelistirme yaparsak mesela bu veri seti icerisindeki bir baska kategorik degiskenle bu League kategorik degiskenini birlikte gorsellestirmek istersek.Mesela ben acaba A ligi icerisinde kac tane E bolgeseinde oynayan oyuncu var bunu gormek istersek yada W bolgesinde oynayan oyuncu var yani burada iki tane kategorik degiskeni beraber betimlemek istersek;
+
+
+
+
+```
+
+```{r message=FALSE, warning=FALSE}
+ggplot(df,aes(odeme,fill = Division))+ geom_bar()
+#Burada iki kategorik degiskeninin ic ice siniflanmis olmasi durumunu ortaya cikartmaktadir.Ornegin x satıscısının y satıscısına  satıscı dagilimini gorebiliyoruz.Eger ki karmasik gibi gorunen kisim olursa ufak bi ekleme ile dagilimlarini daha rahat gorebiliriz.
+```
+
+```{r message=FALSE, warning=FALSE}
+ggplot(df,aes(League,fill = Division))+ geom_bar(position = position_dodge()) + ggtitle("Ikı Kategorik Degisken Icın BarPlot")+xlab("satıcının satıs yaptıgı content ")+ylab("Gozlenme Sikliklari")
+#Bu grafiktende anlayabiliyoruz ki A liginde W bolgesinde oynayan oyuncular E bolgesinde oynayan oyunculardan cok az daha fazladir diyebiliriz. Aynı senaryoyu N ligi icinde soylemek mumkun olabilir.
+```
+
+
+## BoxPlot(Kutu Grafigi)
+
+```{r message=FALSE, warning=FALSE}
+#Oyuncunun Yeni Ligi(NewLeague) ile Oyuncu Maaslari(Salary) icin box plot olusturalim
+library(ggplot2)
+ggplot(data=df,aes(x=NewLeague,y=Salary))+geom_boxplot()+theme(axis.text.x = element_text(angle=45,hjust = 1))
+#Bu box plot a bakarak soyle bir yorumda bulunabiliriz: Her bir grubun medyan degerlerinin degistigini gorebiliyoruz. Bu durum, Oyuncunun yeni sezonda yeni bir lige transfer olmasinin oyuncunun maaslarini etkilediginin bir isareti olabilir.Fakat tabiki bunu sadece kutu grafigine bakarak soylemek dogru olmaz.Ve tabiki grafiklerdede gorulmektedir ki outlier(aykiri degerler) mevcut bunlarin nedenleri bir oyuncunun diger oyunculara gore daha tecrubeli olup daha fazla maas almasi veya oyuncunun takimi icin gercekten degerli olmasi o oyuncunun maasinin yuksek oldugunu gostermektedir. Regresyon modelini kurdugumuzda boyle bir iliskinin olup olmadigi daha net anlasilacaktir.Ekstra olarak Salary degiskeninde NA yani eksik gozlemler olduguda unutulmamalidir.
+```
+
+```{r,warning=FALSE, message=FALSE}
+#Division ile Salary icin Box Plot olusturalim
+library(ggplot2)
+qplot(x=Division,y=Salary,data = df,geom = c("boxplot","jitter"),fill=Division)
+  #Yorum: E bolgesinde oynayan oyuncularin, W bolgesinde oynayan oyunculardan maaslari daha fazladir. Ayrica W bolgesinde oynayan oyuncuların medyani E bolgesinde oynayan oyuncularin medyanindan daha asagadadir.W bolgesinde oynayan oyuncularin dagilimi biraz saga carpiktir denilebilir.E bolgesinde oyuncuların grafigi daha dengeli bir sekilde diyebiliriz.Medyan cizgisi ortaya yerlesmisse simetrik bir dagilimdir diyebiliriz.
+```
+## Violin Grafigi
+
+```{r,warning=FALSE, message=FALSE}
+#League ile Salary icin violin grafigi olusturalim
+library(plotly)
+p <- df %>%
+  plot_ly(
+    x = ~League,
+    y = ~Salary,
+    split = ~League,
+    type = 'violin',
+    box = list(
+      visible = T
+    ),
+    meanline = list(
+      visible = T
+    )
+  ) %>% 
+  layout(
+    xaxis = list(
+      title = "League"
+    ),
+    yaxis = list(
+      title = "Salary",
+      zeroline = F
+    )
+  )
+p
+#Yorum:N liginde oynayanlarin medyani,A liginde oynayanlarin medyanindan daha yuksek.Ayrica her iki kategorinin de biraz sağa carpik oldugu gorulebilir.Cunku cizgili ile gosterilen ortalama medyanindan daha asagada gozukmektedir.
+```
+
+## Sacinim Grafigi
+```{r,warning=FALSE, message=FALSE}
+#NewLeague kategorili, Hits ve Salary grafigi
+library(ggplot2)
+ggplot(data = df, aes(x =Hits, y = Salary, col = NewLeague)) + 
+  geom_point()+
+  xlab("Isabet Sayilari")+
+  ylab("Oyuncu Maaslari")+
+  ggtitle("Isabet Sayilari ve Maaslari")+
+  facet_grid(~NewLeague)
+#Yorum: A ve N liginde isabet sayilarina gore maaslara baktigimizda isabet sayisi arttikca maaslarinda arttigini görebiliyoruz.Fakat dedigimiz gibi bazı tecrube durumlari olabilir farkli durumlardan oturu bu bazi durumlarda degisiklik gosterebildiginide grafikten gorebiliyoruz.Bunlarin dagilimlari hakkinda da bu grafiklerden bilgi edinmemiz mumkundur.
+```
+
+## Histogram Grafigi
+
+```{r message=FALSE, warning=FALSE}
+#Salary icin histogram
+hist(df$Salary,main="Oyuncularin Maaslari Histogrami",col="lightcyan4",xlab="Maas",ylab="Frekans")
+#Yorum: Grafigimiz 600 civarinda merkezlenmistir.Ayni zamanda verinin siddetli saga carpik oldugu da gorulebilir.
+```
+## Bagimli Degiskene Donusum Yapilarak Histogram Grafigi
+```{r message=FALSE, warning=FALSE}
+#Yukardaki Salary degiskenin normal dagilmadiginin ve siddetli bir saga carpiklik oldugu gorulmektedir.Bunun icin Salary degiskeninin logaritmasini alip histogram cizdirdirdigimizde veri oldukca normallesmis ve simetriye yakin bi duruma gelmistir.
+df$logSalary=log(df$Salary)
+hist(df$logSalary,main="Oyuncularin Maaslari Histogrami",col="lightcyan4",xlab="Maas",ylab="Frekans")
+
+```
+
+```{r message=FALSE, warning=FALSE}
+ggplot(df,aes(log(Salary))) + geom_density(fill="orange")
+#Yogunluk grafiginede baktigimiz zaman bu sekilde bir grafik ile karsilasabiliyoruz.
+```
+
+```{r message=FALSE, warning=FALSE}
+#Burada bir kategorik degisken ile surekli degiskenimiz var.Buradaki amacim bu surekli degisken kiriliminda bu histogramlari vermek istersek,burada aes icerisine bir kategorik degiskeni girdigimizde bize bunu kirilimini vermis olucak;
+ggplot(df,aes(Salary,fill=League)) +geom_histogram()
+#Burada bir kategorik degisken kiriliminda bu dagilimlari ust uste olacak sekilde vermis oldu.Buraya diger baska kategorik degiskenleride kirilimlara gore histogram verme isini gerceklestirebiliriz.Burada tabi bu kirilimlarin ust uste gosterimi biraz daginik gozukmekte bunu da biraz daha iyi görmek icin söyle bir komut kullanilabilir.
+
+```
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+ggplot(df,aes(Salary)) +geom_histogram()+facet_grid(League~.)
+#Burada butun kategorik degisken siniflari uzerinde veri setini parcalamis oldu.Burada dagilimlari biraz daha rahat gorebiliriz.
+```
+
+
+## Korelasyon ve Sacilim Grafigi
+```{r,warning=FALSE, message=FALSE}
+#Verimizin Numerik degiskenleri icin korelasyon ve sacilim grafikleri
+library(GGally)
+df5 <- Hitters
+ggpairs(df5,columns = c("AtBat","Hits","HmRun","Runs","RBI","Walks","Years","CAtBat","CHits","CHmRun","CRuns","CRBI","CWalks","PutOuts","Assists","Errors","Salary"),title = "Numerik degiskenler icin grafik")
+#Yorum:Burada dikkat edilmesi gereken bir durum vardir. Bazi iki degiskenler arasinda yuksek korelasyon gozukmektedir.Bu iki degiskeni modele sokarken multicolinearity problemi ortaya cikacaktir. Bunu varsayimlarin saglanmasi durumunda kontrol edecegiz.
+```
+
+```{r message=FALSE, warning=FALSE}
+ggcorr(df5, method = c("everything", "pearson"))
+```
+
+## Alternatif Yuzde Grafigi
+```{r,warning=FALSE, message=FALSE}
+#League, NewLeague, ve Division kategorik degiskenleri icin grafik olusturalim
+library(gridExtra)
+p1 <- ggplot(aes(x=League), data=Hitters) + geom_bar(aes(y=100*(..count..)/sum(..count..))) + ylab('percentage') +
+  ggtitle('Ligler') + coord_flip()
+p2 <- ggplot(aes(x=NewLeague), data=Hitters) + geom_bar(aes(y=100*(..count..)/sum(..count..))) + ylab('percentage') +
+  ggtitle('Yeni Ligleri') + coord_flip()
+p3 <- ggplot(aes(x=Division), data=Hitters) + geom_bar(aes(y=100*(..count..)/sum(..count..))) + ylab('percentage') +
+  ggtitle('Oynadigi Bolge') + coord_flip()
+
+grid.arrange(p1, p2, p3, ncol=2)
+ #Yorumu: League degiskeni icin, A liginde oynayan oyuncular N liginde oynuyan oyunculardan daha fazladir.NewLeague degiskeninde de A liginde oynayan oyuncular daha fazladir.Bunun nedeni N liginin daha iyi olmasi veya daha cok talep gormesi olabilir. Division'da da W bolgesinde oynayan oyuncularin yuzdesi daha fazladir. 
+```
+## Alternatif Sacilim Grafigi
+```{r,warning=FALSE, message=FALSE}
+#Yenisezonda oynadigi lig ile birlikte(NewLeague) isabetli atis ve oyuncularin maaslari arasindaki sacilim grafigi
+library(plotly)
+p<- plot_ly(data=df,x= ~Hits, y= ~Salary,color = ~NewLeague)
+p
+#Genel olarak isabetli atislar arttikca alinan maasinda arttigini bu grafikten gözlenleyebiliyoruz.Burdanda yukardaki yuzde grafiklerindende gordugumuz gibi A liginde bu isabetli atislarin daha yuksek oldugu ve bunlarin daha fazla maas aldigini gozlemleyebiliriz.
+```
+
+
+## Pasta Grafigi
+```{r,warning=FALSE, message=FALSE}
+library(plotly)
+library(dplyr)
+#Yüzde olarak kategorik degiskenlerin dagilimini pasta grafigi yardimi ile bu sekilde gorebiliriz.
+p <- plot_ly() %>%
+  add_pie(data = count(df, League), labels = ~League, values = ~n,
+          name = "Ligler", domain = list(x = c(0, 0.4), y = c(0.4, 1))) %>%
+  add_pie(data = count(df, NewLeague), labels = ~NewLeague, values = ~n,
+          name = "Yeni Ligler", domain = list(x = c(0.6, 1), y = c(0.4, 1))) %>%
+  add_pie(data = count(df, Division), labels = ~Division, values = ~n,
+          name = "Oynadiklari Bolge", domain = list(x = c(0.25, 0.75), y = c(0, 0.6))) %>%
+  layout(title = "Pie Charts", showlegend = F,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+p
+
+```
+
+
+## Lineerlik Grafikleri
+
+Bu grafiklerde lineerlige bakiyoruz.Bagimli degiskenle bagimsiz degiskenler arasindaki lineerlik incelenmektedir.
+
+
+## {.tabset .tubset-fade .tabset-pills}
+
+
+### Beyzbol Sopasi ile Kac Kez Topa Vurdugu(Maasa Etkisi)
+```{r message=FALSE, warning=FALSE}
+library(plotly)
+plot_ly(data=Hitters,x= ~AtBat, y= ~Salary)
+```
+
+### Isabet Sayisi(Maasa Etkisi)
+```{r message=FALSE, warning=FALSE}
+plot_ly(data=Hitters,x= ~Hits, y= ~Salary)
+```
+
+### Kac tane oyuncuyu fake'a goturmesi(Maasa Etkisi)
+```{r message=FALSE, warning=FALSE}
+plot_ly(data=Hitters,x= ~RBI, y= ~Salary)
+```
+
+### Sayi kazandirma sayisi(Maasa Etkisi)
+```{r message=FALSE, warning=FALSE}
+plot_ly(data=Hitters,x= ~Runs, y= ~Salary)
+```
+
+### Hata Yaptirma Sayisi(Maasa Etkisi)
+```{r message=FALSE, warning=FALSE}
+plot_ly(data=Hitters,x= ~Walks, y= ~Salary)
+```
+
+
+
+## {-}
+
+
+## Eksik Veri Rassaliginin Testi
+
+Burada kullanicagimiz test Little MCAR Testi
+
+Ho: Eksik Veriler Tamamen Rasgele Dagilmistir
+
+Ha: Eksik Veriler Tamamen Rasgele Dagilmamistir.
+
+```{r message=FALSE, warning=FALSE}
+library(BaylorEdPsych)
+library(mvnmle)
+
+#Bu fonksiyonun ozelligi verimizin bir kosulu vardır. 50 den fazla degisken oldugunda bu testi gerceklestiremiyor.Dolayisiyla verisetimizde 50 den fazlaysa degisken sayimiz buna cozum olarak 50ser 50ser 40ar 40ar ayirarak bir test gerceklestirilebilir.
+a <- LittleMCAR(df)
+
+# a diye bir atama yaptigimizda bunun icerisinden alabilicegimiz degerleri ise bu komut ile gorebiliriz;
+
+attributes(a)
+#Bunun icerisinden bazi degerler verilmistir.Biz de buradan p-value degerini cektigimiz zaman;
+a$p.value
+
+#Burada p-value degeri 0.0001414 cikmis.Yorumlama kismina gectigimizde p-value degeri 0.05 den kucuk oldugundan dolayi Ho hipotezini yani eksik veriler rasgele dagilmistir hipotezini reddediyor ve eksik verilerin tamamen rasgele dagilmamistir hipotezini ortaya koymus oluyor bizde zaten en basta veriyi ozetlerken eksik verilerin 59 gozleminde salary degiskenimizde oldugunu ve eksik verilerin rasgele dagilmadigini gorebiliyorduk.Bu durum bize elimizdeki verilerin bir yapisal bozukluk tasidigini ve bunlarin hizlica bir silme islemine tabi tutmadan once iyice bir dusunulmesi gerektigini ve yapisal problemin nereden kaynaklanmis olabilicegine odaklanmamizi ifade etmektedir.
+
+
+```
+
+## Eksik verilerle ilgili düzeltme onerisi
+
+Eksik veri problemleri saha arastirmalarindaki problemlerde meydana gelebilecegi gibi veritabanlarindaki birleştirme işleminden veya yapisal olarak gozlem birimlerine ait degerlerin gozlenememesi durumundada ortaya cikmaktadir.
+Burada eksik veriyle mucadele etmenin en iyi yolu olmadigi gibi herkesin kendine ait bir duzeltme onerisi vardir.Sayın Birsen Hocaminda derste soyledigi gibi arastirmaci nasil daha iyi hissedebiliyorsa veriyle o sekilde ilgilenmelidir.Bazi kaynaklar yuzde 15in uzerinde eksik gozleme sahip gozlemlerin silinmesi yonunde bilgiler sunmaktadir.Fakat bu karari ani bir sekilde bu karari vermek dogru olmayabilir.
+
+## Eksik Verinin Yapisinin Incelenmesi
+
+## Mice ile Yapi İncelemesi
+```{r message=FALSE, warning=FALSE}
+set.seed(123)
+df1 <- Hitters
+colSums(is.na(df1))
+
+#Bizim daha öncedende bildigimiz gibi sadece Salary degiskeninde 59 eksik degerin oldugunu ve rasgele dagilmadigin biliyorduk.Bu veriyi kullanabilmek icin 3 tane degiskene rasgele eksik gozlem ekleme islemi gerceklestiricem.
+
+df1[sample(1:nrow(df1),7),"Hits"] <- NA
+df1[sample(1:nrow(df1),9),"Runs"] <- NA
+df1[sample(1:nrow(df1),5),"RBI"] <- NA
+#Burada Hits,Runs,RBI degiskenler icin eksik gozlem ekledik.Burada eksik gozlem sayisinin farkli olarak secilmesi yapisini gormek adina daha faydali olacaktir.
+
+colSums(is.na(df1))
+
+
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#Dört degiskende eksik deger oldugunu goruyorum.Amacimiz bu eksik degerlere sahip olan degiskenlere erismek oldugunu dusundugumuzde;
+#df1[, c("Salary","Hits","Runs","RBI")]
+head(df1[, c("Salary","Hits","Runs","RBI")])
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#Simdi ise bu eksik degerlere sahip olan degiskenlerden sadece dolu olanlara istersek;
+#df[complete.cases(df),]
+head(df[complete.cases(df),])
+
+```
+
+## Eksik Veri Rassaliginin Testi-2
+
+Burada kullanicagimiz test Little MCAR Testi
+
+Ho: Eksik Veriler Tamamen Rasgele Dagilmistir
+
+Ha: Eksik Veriler Tamamen Rasgele Dagilmamistir.
+
+```{r message=FALSE, warning=FALSE}
+library(BaylorEdPsych)
+library(mvnmle)
+
+
+
+b <- LittleMCAR(df1)
+
+# b diye bir atama yaptigimizda bunun icerisinden alabilicegimiz degerleri ise bu komut ile gorebiliriz;
+
+attributes(b)
+#Bunun icerisinden bazi degerler verilmistir.Biz de buradan p-value degerini cektigimiz zaman;
+b$p.value
+
+#Yeni olusturdugumuz eksik verili veri icin rassaliga baktigimizda eksik veriler rasgele dagildigini gorebiliyoruz.Cunku p-value degeri 0.05 den buyuk oldugu icin Ho hipotezini reddedemiyoruz ve eksik verilerin rasgele dagilmistir seklinde yorum yapabiliyoruz.
+```
+
+## Eksik Verinin Yapisinin Gorsellestirilmesi
+
+```{r message=FALSE, warning=FALSE}
+library(mice)
+md.pattern(df1)
+#Burada cok degisken oldugu icin takip edilebilmesi icin daha az degisken secerek yorumlamak istiyorum.
+```
+
+```{r message=FALSE, warning=FALSE}
+md.pattern(df1[,c("CAtBat","Years","Walks","Salary","Hits","Runs","RBI")])
+#Az degisken sectik fakat eksikligi icerenleride burada secmis olduk.Bu grafikte yorumlarken,buradaki ilk satir bize veri seti icerisinde kac tane gozlemin full olarak dolu oldugunu gosteriyor.Burada 249 tane tane gozlemin tamamen dolu oldugu bilgisini bize veriyor.Bu durumu dogrulamak istersek;
+nrow(df1[complete.cases(df1),])
+#Burada dolu gozlemleri gormek icin bu komutu kullandık.Bu veriseti icerisinde tam olarak ifade edilen gozlemleri bu sekilde gosteriyoruz. Yani gercekten bizim 249 tane gozlemimiz tamdır.
+#Daha sonra grafikten ikinci olarak edinebilicegimiz bilgiye baktigimiz zaman burada 2ci ve 3cu satirlardaki gibi kenarinda 1 olan degerlere baktigimizda bunun anlami sadece kendisinden kaynakli eksikligi ifade etmektedir.Yani bir degisken kaynakli eksikligi ifade etmektedir.Ornegin burada Salary degiskeni kaynakli 54 tane eksiklik oldugunu goruyoruz.Fakat Salary degiskeninde toplam 59 tane eksiklik vardi.Fakat burada 54 tane cikti bunun sebebi ise Salary degiskeninin sadece kendisinden kaynakli oldugu icindir.Mesela hem salary degiskeninde hem run degiskeninde ortak eksiklikler oldugunuda gostermektedir.
+```
+
+```{r message=FALSE, warning=FALSE}
+library(VIM)
+
+eksik_plot <- aggr(df1,col=c("navyblue","red"),
+                   numbers=TRUE,
+                   sortVars = TRUE,
+                   labels = names(df1),
+                   cex.axis = .7,
+                   gap=3,
+                   ylab=c("Eksik Degerlerin Oransal Gosterimi","Eksikligin Veri Seti Icindeki Yapisi"))
+#Ilk ciktida her bir degiskendeki eksikligi oransal olarak ifade edildigini goruyoruz.Ikinci cikti ise veriseti uzerinde degerli yorumlama sansi sunan bir gorseldir.Sol taraftaki grafige baktigimizda her bir degiskenin veriseti icerisindeki genel eksik deger durumunda nasil bir yer kapladigini oransal olarak ifade etmektedir.Salary degiskeninin en fazla eksik gozlem oldugunu goruyoruz.Eksikligin cogunu bu degiskenden kaynaklanmaktadir.Ikıncı grafige baktigimizde yukardaki grafiktede baktigimiz o grafikte eksik gozlemlerin degerlerini verirken bu grafikte ise ayni grafigin oransal sekilde oldugunu gorebiliyoruz.Yandaki Cubuk grafikleri oradaki doluluk oranini ve eksik gozlem oranlarini gostermektedir.
+
+```
+
+## Eksik Veriye Deger Atama 
+
+```{r message=FALSE, warning=FALSE}
+#Buradaki Hits isimli degiskenin icerisindeki eksik gozlemleri doldurumak istersek,bunu bir ortalama deger ile atıyoruz.
+df1$Hits[is.na(df1$Hits)] <- mean(df1$Hits,na.rm = TRUE)
+summary(df1)
+#Diger degiskenlerdeki eksiklikler hala gozlenmekte fakat Hits degiskenini bu durumdan kurtarmis oldum.
+
+#Kutuphaneden bir atama yontemi kullanarak bu sefer Salary icin aynı islemi yapıyorum;
+library(Hmisc)
+summary(df1$Salary)
+#Bu degisken icerisinde 59 tane NA ifadesi var.
+df1$Salary <- impute(df1$Salary,mean)
+
+
+#Burada 59 tane degeri doldurdugunu ifade ediyor.Bu degerleri ortalama deger ile doldurmustur.Gozlem degerlerini silmektense veya onemli olan Salary degiskenini komple cikartmak yerine ortalama ile eksik gozlemleri doldurmak bana(arastirmaciya) gore daha saglikli gozukmektedir.
+df1$Runs <- impute(df1$Runs,mean)
+summary(df1$Runs)
+
+#Alternatif olarak mean yani ortalama disinda deger atamaktan farklı mod degerine medyan degerine gore de eksik gozlem doldurulabilir.
+
+#impute(df1$Salary,mod)
+#impute(df1$Salary,median)
+```
+
+## Eksik Gozlem Olmadan Dagılım
+
+```{r message=FALSE, warning=FALSE}
+library(funModeling)
+plot_num(df1)
+plot_num(df)
+#Burada eksik gozlemleri doldurduktan sonra dagilimlarina baktim.
+```
+
+
+## Aykiri Gozlem Analizi
+
+
+```{r message=FALSE, warning=FALSE}
+#Ilk olarak Aykiri Gozlemlerin Faktor Skorlarlarini Hesapliyalim;Lokal Outlier Faktor Algoritmasi:Bu algoritmanin temelde yaptigi aykiri gozlmleri bulunduklari konumda yogunluk acisindan tanimlayan bi algoritma,yani aslinda bir noktanin lokal yogunlugu bu noktanin komsulari ile karsilastiriyor.
+library(DMwR)
+#Burada kategorik degiskenleri cikarttik.Cunku bu algoritma sadece numerik degiskenler ile calisiyor.
+df2 <- na.omit(Hitters[,-c(14,15,20)] )
+str(df2)
+
+# Aykiri gozlem icin faktor skorları hesaplayacagiz.Bu algoritmanin guzel yani bu yogunluklar bu faktor skorlari ile yogunluk degerlendirmesi yapacagiz.Bu yogunluklar icin bir skor hesapliyacagiz.Istedigimiz skora gore bi takim esneklikler sunulmus oluyor.
+skorlar <- lofactor(df2,k=5) #burada k, yerel aykırı faktörlerin hesaplanmasında kullanılan komşuların sayısıdır.
+#Burada olusturdugumuz skorlarin yogunlugunu gozlemlemek istersek;
+plot(density(skorlar))
+#Burada aykiri skorlarin yogunluklari bu sekildedir.
+
+
+
+
+```
+
+## Faktor Skorları ile Aykiri Gozlemlere Bakmak
+
+```{r message=FALSE, warning=FALSE}
+order(skorlar,decreasing = T)[1:5]
+#Burada 1 den 5 ye kadar olan aykiri gozlem skorlarina gore indekslerini gormus oldum.Skorlarin bize aykiri gozlem olarak tanimladigi ilk 5 tane gozleme erismis oldum.Burada bu skorlar ile kacinci gozlemlerde oldugunu gordum yani indekslerine erismis oldum.Bunların gercek degerlerine bakmak istersem;
+```
+
+
+```{r message=FALSE, warning=FALSE}
+aykiri_skorlar <- order(skorlar,decreasing = T)[1:5]
+#Burada verisetimizde aykiri skorlarin belirledigi gozlemlere karsilik yani 173,241,189,257,62 gozlemlerinin degerlerini gormek istersem;
+print(df2[aykiri_skorlar,])
+#Bu gozlem degerlerinin satir olarak direkt kendi degerlerine erismis oldum;
+#173üncü gozlem Mike Schmidt'i, aynı sekilde diger gozlemlerde diger oyunculari temsil etmektedir.Mesele burdaki gozlemlerdeki degerleri faktor skorlari sayesinde bu gozlemleri aykiri gozlem olarak vermis oldu.
+
+
+```
+
+## Cok Degiskenli Aykiri Gozlemlerin Gorsellestirilmesi
+
+```{r message=FALSE, warning=FALSE}
+#Ortaya cıkardigi grafigi ve aykiri gozlemlere bakmak istersek;
+n <- nrow(df2)
+etiket <- 1:n
+#Skorlara karsilik gelen degerler;
+aykiri_skorlar <- order(skorlar,decreasing = T)[1:5]
+
+#Bu aykiri gozlemler disindaki tum gozlemleri "." ile ifade edip daha sonra bu çok degiskenli olan verimi temel bilesenler analizi yontemi ile iki bilesene indirgiycem ve indirgedigim bu durum uzerinde sayilarin hepsinin gozukmesi yerine aykiri olmayan sayilara "." koyucam ki aykirilari gormus olalım.
+
+etiket[-aykiri_skorlar] <- "."
+
+biplot(prcomp(df2),cex = 1 , xlabs = etiket)
+
+#Burada aslinda cok degiskenli olan verisetimi iki degiskene principal component yontemi ile indirgemis oldum.Burada aykiri gozlemlere baktigimda numerik ifadeler benim faktor skoru ile buldugum aykiri gozlemleri ifade ediyor.Oklarin sebebi principal componente kullanilan o degiskenlerin bilesenler uzerindeki etkilerini ve yonlerini gostermektedir.17 degisken oldugundan grafikte karmasik gibi gorunsede kullanmak istedigimiz zaman daha rahat sekilde gormemize yardimci olacak kodlar kullanilabilir.
+
+
+
+
+```
+
+
+## Korelasyon Matrisi Uzerinden Aykirilari İncelemek
+
+```{r message=FALSE, warning=FALSE}
+#Degiskenlerin birbirlerine gore durumlari uzerinden aykiri degerlere bakarsak;
+#İlk basta gozlem sayisi kadar nokta olusturdum;
+nokta <- rep(".",n)
+#Aykiri olan gozlemleri + ile isaretledim.
+nokta[aykiri_skorlar] <- "+"
+
+col <- rep("darkblue",n)
+col[aykiri_skorlar] <- "red"
+
+pairs(df2[1:4], pch = nokta , col = col)
+#Tüm degiskenleri kullandigim zaman degerler belli olmadigindan 4 degisken uzerinden anlatmak istedim;
+#Burada ikili ikili sacilim graiklerine bakabiliriz.Meselea AtBat degiskeni ile Hits degiskeni arasindaki sacinim grafigine baktigim zaman,Oradaki + isaretleri bu iki degisken arasindaki ilsikide aykiri degerler olanlar isaretlenmistir.
+
+
+```
+
+## Model Kurarak Outlier Karsilastirma
+
+```{r message=FALSE, warning=FALSE}
+model <- lm(odeme~.,data=df)
+summary(model)
+
+library(car)
+stud <- rstudent(model)
+stud[which.max(abs(stud))]
+
+
+#Bunu test etmek icin bonferoni kritik degeri ile karsilastiracagiz.
+qt(.05/(322*2),311)
+
+#Burada faktor skorlari ile test ettigimiz gibi 173uncu gozlem yani Mike Schmidt oyuncusu aykiri gozlem cikmistir.6.71 degeri bonferoni kritik degeri 3.81 den buyuk oldugundan 173 uncu gozlem aykiri degerdir. Bu degeri model kurarakta gormus olmamız aykiri deger olduguna daha da fazla guvendirdi.
+
+```
+
+## Multicollinearity(Çoklu Bağlantı)
+
+```{r message=FALSE, warning=FALSE}
+
+
+#En basta olusturdugumuz Korelasyon grafiğindende gordugumuz gibi aralarindaki ikili bazi degiskenler arasinda bir multicollinearity soz konusuydu. Bunu multicollinearity olan iki degisken uzerinden gosterirsem. AtBat ve Hits degiskenleri arasinda bir multicollienarity soz konusuydu bunu gosterelim.
+cor(df$odeme,df$arama)
+#Korelasyon katsayisina baktigimizda iki degisken arasinda pozitif yonlu guclu bir iliski var diyebiliriz.
+#Bir de grafikle aralarindaki iliskiye bakalim
+plot(df$odeme~df$arama)
+#Buradan da gorulecegi gibi degiskenler arasinda kuvvetli dogrusal bir iliski vardir.
+
+```
+
+Bu durumda, bu iki degiskenden, birinden alacagimiz bilginin buyuk bir kismini diger degisken saglayacagindan dolayi modele AtBat ya da Hits degiskenlerinden birini almak yeterli olacaktir. Modele hangisini alacagimiza,ikisiyle birer model kurup duzeltilmis $R^2$ degerine bakarak karar verecegiz. Duzeltilmis $R^2$ degeri buyuk olani modelde tutup, diger degiskeni modelden atacagiz.
+
+```{r message=FALSE, warning=FALSE}
+lm1<-lm(satis~ulasma,data=Hitters)
+lm2<-lm(odeme~arama,data=Hitters)
+summary(lm1)$adj.r.squared
+summary(lm2)$adj.r.squared
+```
+Buradan goruldugu uzere Hits degiskeni daha yuksek bir $R^2$ degerine sahiptir.Dolayisiyla Hits degiskenini modelde tutup, AtBat degiskenini modelden cikarabiliriz.
+
+Bu sonuclar 17 degisken icinden sadece ikisi arasinda bakilan sonuclardir.Korelasyon grafigindede goruldugu gibi cokca ikili degiskenler arasında bir multicollienarity mevcut fakat ben hepsi icin yapmadan model kurup modelin vif degerlerine bakarak cokulu baglantiya bir de oyle bakmak istedim.
+
+## VIF Deger Kontrolu
+
+```{r message=FALSE, warning=FALSE}
+model_yeni <- lm(satıs~. , data=df)
+summary(model_yeni)
+library(faraway)
+vif(model_yeni)
+
+#Goruldugu gibi oldukca yuksek vif degerleri multicollinearity oldugunu gostermektedir.
+```
+
+## Kosul Indeksi
+
+```{r message=FALSE, warning=FALSE}
+x<- model.matrix(model_yeni)[,-1] #intercept sutununu cıkardım
+x<- scale(x,center = T,scale = T) # standartlastırma yaparak,
+eigen(t(x)%*%x)$values
+
+max(eigen(t(x)%*%x)$values)/min(eigen(t(x)%*%x)$values) #6131.339 degeri bir sorun oldugunu soyluyor.
+
+
+mydata.cor = cor(df2, method = c("spearman"))
+library(corrplot)
+corrplot(mydata.cor)
+
+```
+Regresyon uygulamalarının çoğunda, bağımsız değişkenler arasında ilişki söz konusudur. Hatta bazı durumlarda, bağımsız değişkenler arasında çok kuvvetli doğrusal ilişki vardır ve böyle durumlarda, regresyon modeli yardımıyla yapılacak yorumlar,  yanlış yönlendirmelere ve hatalara neden olur. Oysa çoklu regresyon denkleminin yorumu, bağımsız değişkenlerin kuvvetli bir şekilde ilişkili olmaması varsayımına dayalıdır. Bu varsayımın bozulması, yani bağımsız değişkenler arasında bir ya da daha fazla doğrusal bağıntının olması çoklu bağlantı (multicollinearity) sorununu gündeme getirir.
+
+Çoklu bağlantı durumunda tahminler yansız olsa da bağımsız değişkenlerin kuvvetli iliksisinin değerlendirilmesi ve birlikte etkilerine ilişkin sonuçlara güvenilemez ; yani bağımsız değişkenlerle en iyi tahmin değerleri elde edilse bile beta katsayıları ve $R^2$ ler güvenilir bir şekilde yorumlanamaz. Temel kural olarak, bağımsız değişkenler arasındaki korelasyonun 0,80’nin üstünde olması bir çoklu bağlantı sorununa işaret eder. 
+
+Benzer şekilde yüksek çoklu bağlantı da, yüksek $R^2$ ve F testinin önemli olarak ortaya çıktığı modelin katsayılarına ait t testinin önemsiz olmasıyla kombine olacağına işaret etmektedir. Tam çoklu bağlantı, belirlenemeyen katsayılar ve tanımlanamayan standart hata ortaya çıkarırken, yüksek çoklu bağlantıda daha yaygın bir durum olarak yüksek varyans ve kovaryanslar, büyük güven aralığı ve gerçekte önemsiz olduğu halde, yer aldığı denklemin önemli bulunduğu katsayılara sebep olmaktadır. 
